@@ -14,11 +14,13 @@
 
     <div id="vault-section" style="display:none;">
         <h2>Manage Your Secrets</h2>
-        <div>
-            <input type="text" id="secret-name" placeholder="Secret Name">
-            <input type="text" id="secret-value" placeholder="Secret Value">
-            <button id="add-secret-btn">Add Secret</button>
-        </div>
+        <form autocomplete="off">
+            <div>
+                <input type="text" id="secret-name" name="secret-name" placeholder="Secret Name" autocomplete="off">
+                <input type="text" id="secret-value" name="secret-value" placeholder="Secret Value" autocomplete="off">
+                <button id="add-secret-btn">Add Secret</button>
+            </div>
+        </form>
         <h3>Your Secrets:</h3>
         <ul id="secrets-list"></ul>
         <button id="logout-btn">Logout</button>
@@ -38,6 +40,14 @@
             if (secretName && secretValue) {
                 addSecret(secretName, secretValue);
             }
+        });
+
+        // Disable autocomplete, spellcheck, etc. for all input fields programmatically
+        document.querySelectorAll('input').forEach(input => {
+            input.setAttribute('autocomplete', 'off');
+            input.setAttribute('autocorrect', 'off');
+            input.setAttribute('autocapitalize', 'off');
+            input.setAttribute('spellcheck', 'false');
         });
 
         function login() {
