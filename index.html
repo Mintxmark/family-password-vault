@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Family Password Vault</title>
+    <script src="https://alcdn.msauth.net/browser/2.13.1/js/msal-browser.min.js"></script>
 </head>
 <body>
     <h1>Family Password Vault</h1>
@@ -27,11 +28,37 @@
     </div>
 
     <script>
-        let accessToken = '';
+        const msalConfig = {
+            auth: {
+                clientId: "<Your Azure AD Client ID>", // Replace with your Azure AD Application ID
+                authority: "https://login.microsoftonline.com/<Your Tenant ID>", // Replace with your Azure Tenant ID
+                redirectUri: window.location.origin
+            }
+        };
+        const msalInstance = new msal.PublicClientApplication(msalConfig);
 
+        // Trigger Azure AD login
         document.getElementById('login-btn').addEventListener('click', function() {
-            // Authenticate with Azure AD (Using MSAL.js in future steps)
             login();
+        });
+
+        function login() {
+            msalInstance.loginPopup().then(response => {
+                console.log(response); // View the token response in the console for debugging
+                // After successful login, hide login and show vault section
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('vault-section').style.display = 'block';
+            }).catch(error => {
+                console.error(error);
+            });
+        }
+
+        // Disable autocomplete, spellcheck, etc. for all input fields programmatically
+        document.querySelectorAll('input').forEach(input => {
+            input.setAttribute('autocomplete', 'off');
+            input.setAttribute('autocorrect', 'off');
+            input.setAttribute('autocapitalize', 'off');
+            input.setAttribute('spellcheck', 'false');
         });
 
         document.getElementById('add-secret-btn').addEventListener('click', function() {
@@ -42,24 +69,8 @@
             }
         });
 
-        // Disable autocomplete, spellcheck, etc. for all input fields programmatically
-        document.querySelectorAll('input').forEach(input => {
-            input.setAttribute('autocomplete', 'off');
-            input.setAttribute('autocorrect', 'off');
-            input.setAttribute('autocapitalize', 'off');
-            input.setAttribute('spellcheck', 'false');
-        });
-
-        function login() {
-            // Redirect user to Azure AD login (MSAL.js will handle this)
-            alert('Login function to be implemented.');
-            // After successful login, hide login and show vault section
-            document.getElementById('login-section').style.display = 'none';
-            document.getElementById('vault-section').style.display = 'block';
-        }
-
         function addSecret(name, value) {
-            // Here, you will call Azure Functions API to add the secret (future step)
+            // This will later make a call to Azure Functions to store the secret in Azure Key Vault
             alert(`Secret "${name}" added!`);
             const list = document.getElementById('secrets-list');
             const li = document.createElement('li');
