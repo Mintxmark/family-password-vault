@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Password Vault</title>
+</head>
+<body>
+    <h1>Family Password Vault</h1>
+
+    <div id="login-section">
+        <button id="login-btn">Login with Microsoft Account</button>
+    </div>
+
+    <div id="vault-section" style="display:none;">
+        <h2>Manage Your Secrets</h2>
+        <div>
+            <input type="text" id="secret-name" placeholder="Secret Name">
+            <input type="text" id="secret-value" placeholder="Secret Value">
+            <button id="add-secret-btn">Add Secret</button>
+        </div>
+        <h3>Your Secrets:</h3>
+        <ul id="secrets-list"></ul>
+        <button id="logout-btn">Logout</button>
+    </div>
+
+    <script>
+        let accessToken = '';
+
+        document.getElementById('login-btn').addEventListener('click', function() {
+            // Authenticate with Azure AD (Using MSAL.js in future steps)
+            login();
+        });
+
+        document.getElementById('add-secret-btn').addEventListener('click', function() {
+            const secretName = document.getElementById('secret-name').value;
+            const secretValue = document.getElementById('secret-value').value;
+            if (secretName && secretValue) {
+                addSecret(secretName, secretValue);
+            }
+        });
+
+        function login() {
+            // Redirect user to Azure AD login (MSAL.js will handle this)
+            alert('Login function to be implemented.');
+            // After successful login, hide login and show vault section
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('vault-section').style.display = 'block';
+        }
+
+        function addSecret(name, value) {
+            // Here, you will call Azure Functions API to add the secret (future step)
+            alert(`Secret "${name}" added!`);
+            const list = document.getElementById('secrets-list');
+            const li = document.createElement('li');
+            li.textContent = `${name}: ${value}`;
+            list.appendChild(li);
+        }
+    </script>
+</body>
+</html>
