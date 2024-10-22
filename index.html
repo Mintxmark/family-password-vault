@@ -42,14 +42,20 @@
 
         // Function to trigger login via Azure AD
         function login() {
-            msalInstance.loginPopup().then(response => {
-                console.log(response);  // Log the response for debugging
-                document.getElementById('login-section').style.display = 'none';
-                document.getElementById('vault-section').style.display = 'block';
-            }).catch(error => {
-                console.error(error);
-            });
+    msalInstance.loginPopup().then(response => {
+        if (response.account) {
+            msalInstance.setActiveAccount(response.account);
+            console.log('Login successful!', response);
+            console.log('Account:', response.account);
+            console.log('Access Token:', response.accessToken); // Debug access token
+            
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('vault-section').style.display = 'block';
         }
+    }).catch(error => {
+        console.error('Login failed:', error);
+    });
+}
 
         // Attach the login function to the login button
         document.getElementById('login-btn').addEventListener('click', login);
