@@ -55,6 +55,150 @@
         <button id="logout-btn">Logout</button>
     </div>
 
-    <script src="app.js"></script>
+    <!-- JavaScript Section (Directly within the HTML file) -->
+    <script>
+        // MSAL configuration and authentication
+        const msalConfig = {
+            auth: {
+                clientId: "fa168072-b0c6-45a9-aecb-61a13a45ee4c",  // Your Azure AD Application ID
+                authority: "https://login.microsoftonline.com/af17ef54-4ec2-4f50-9f65-13cdbf818183",  // Your Tenant ID
+                redirectUri: window.location.origin,
+            }
+        };
+
+        const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+        // Function to trigger login via Azure AD
+        function login() {
+            msalInstance.loginPopup().then(response => {
+                if (response.account) {
+                    msalInstance.setActiveAccount(response.account);
+                    document.getElementById('login-section').style.display = 'none';
+                    document.getElementById('vault-section').style.display = 'block';
+                }
+            }).catch(error => {
+                console.error('Login failed:', error);
+            });
+        }
+
+        // Attach the login function to the login button
+        document.getElementById('login-btn').addEventListener('click', login);
+
+        // Function to get access token for API calls
+        function getAccessToken() {
+            const request = {
+                scopes: ["https://vault.azure.net/.default"]
+            };
+
+            return msalInstance.acquireTokenSilent(request).then(response => {
+                return response.accessToken;
+            }).catch(error => {
+                return msalInstance.acquireTokenPopup(request).then(response => {
+                    return response.accessToken;
+                });
+            });
+        }
+
+        // Function to add secret using API call
+        document.getElementById('addSecretForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+            const secretName = document.getElementById('secret-name').value;
+            const secretValue = document.getElementById('secret-value').value;
+
+            getAccessToken().then(accessToken => {
+                fetch('https://<your-function-app>.azurewebsites.net/api/addSecret', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + accessToken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        secretName: secretName,
+                        secretValue: secretValue
+                    })
+                })
+                .then(response => response.text())
+                .then(data => {
+                    alert(`Secret "${secretName}" added successfully!`);
+                })
+                .catch(error => {
+                    console.error('Error adding secret:', error);
+                });
+            });
+        });
+
+        // Function to view secret
+        document.getElementById('viewSecretForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+            const secretName = document.getElementById('viewSecretName').value;
+
+            getAccessToken().then(accessToken => {
+                fetch(`https://<your-function-app>.azurewebsites.net/api/viewSecret?secretName=${secretName}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + accessToken
+                    }
+                })
+                .then(response => response.json())
+                .then(secret => {
+                    document.getElementById('secretValueField').value = secret.secretValue;
+                })
+                .catch(error => {
+                    console.error('Error retrieving secret:', error);
+                });
+            });
+        });
+
+        // Function to delete secret
+        document.getElementById('deleteSecretForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+            const secretName = document.getElementById('deleteSecretName').value;
+
+            getAccessToken().then(accessToken => {
+                fetch(`https://<your-function-app>.azurewebsites.net/api/deleteSecret?secretName=${secretName}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': 'Bearer ' + accessToken
+                    }
+                })
+                .then(response => response.text())
+                .then(data => {
+                    alert(`Secret "${secretName}" deleted successfully!`);
+                })
+                .catch(error => {
+                    console.error('Error deleting secret:', error);
+                });
+            });
+        });
+
+        // Password visibility toggle function
+        function togglePasswordVisibility() {
+            const secretValueField = document.getElementById('secretValueField');
+            const toggleButton = document.getElementById('toggleSecretVisibility');
+            if (secretValueField.type === 'password') {
+                secretValueField.type = 'text';
+                toggleButton.textContent = 'Hide';
+            } else {
+                secretValueField.type = 'password';
+                toggleButton.textContent = 'Show';
+            }
+        }
+
+        // Copy to clipboard function
+        function copyToClipboard() {
+            const secretValueField = document.getElementById('secretValueField');
+            secretValueField.select();
+            document.execCommand('copy');
+            alert('Secret copied to clipboard!');
+        }
+
+        // Disable autocomplete for inputs
+        document.querySelectorAll('input').forEach(input => {
+            input.setAttribute('autocomplete', 'off');
+            input.setAttribute('autocorrect', 'off');
+            input.setAttribute('autocapitalize', 'off');
+            input.setAttribute('spellcheck', 'false');
+        });
+    </script>
 </body>
 </html>
