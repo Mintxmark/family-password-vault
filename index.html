@@ -22,10 +22,28 @@
         <form id="addSecretForm" autocomplete="off">
             <div>
                 <input type="text" id="secret-name" name="secret-name" placeholder="Secret Name" autocomplete="off" required>
-                <input type="text" id="secret-value" name="secret-value" placeholder="Secret Value" autocomplete="off" required>
+                
+                <!-- Secret Value Field (Password Input) -->
+                <input type="password" id="secret-value" name="secret-value" placeholder="Secret Value" autocomplete="off" required>
+
+                <!-- Button to toggle visibility (Text) -->
+                <button type="button" id="toggle-add-password-visibility" onclick="toggleAddPasswordVisibility()">Show</button>
+                
                 <button id="add-secret-btn" type="submit">Add Secret</button>
             </div>
         </form>
+        
+        <!-- View Secret -->
+        <h3>View Secret</h3>
+        <form id="viewSecretForm">
+            <input type="text" id="viewSecretName" placeholder="Secret Name" required>
+            <button type="submit">View Secret</button>
+        </form>
+        <p id="viewSecretResult">
+            <input type="password" id="secretValueField" readonly>
+            <button id="toggleSecretVisibility" onclick="togglePasswordVisibility()">Show</button>
+            <button id="copySecret" onclick="copyToClipboard()">Copy</button>
+        </p>
 
         <!-- Delete Secret -->
         <h3>Delete Secret</h3>
@@ -35,26 +53,15 @@
         </form>
         <p id="deleteSecretResult"></p>
 
-        <!-- List All Secrets -->
+        <!-- Secret List Placeholder -->
         <h3>Your Secrets:</h3>
-        <table id="secrets-table" border="1" style="width: 100%;">
-            <thead>
-                <tr>
-                    <th>Secret Name</th>
-                    <th>Password</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="secrets-tbody">
-                <!-- Secrets will be dynamically populated here -->
-            </tbody>
-        </table>
+        <ul id="secrets-list"></ul>
 
         <!-- Logout Button -->
         <button id="logout-btn">Logout</button>
     </div>
 
-    <!-- JavaScript Section -->
+    <!-- JavaScript Section (Directly within the HTML file) -->
     <script>
         // MSAL configuration and authentication
         const msalConfig = {
@@ -74,7 +81,6 @@
                     msalInstance.setActiveAccount(response.account);
                     document.getElementById('login-section').style.display = 'none';
                     document.getElementById('vault-section').style.display = 'block';
-                    listSecrets();  // List all secrets after login
                 }
             }).catch(error => {
                 console.error('Login failed:', error);
@@ -99,64 +105,6 @@
             });
         }
 
-        // Function to list all secrets in a table
-        function listSecrets() {
-            getAccessToken().then(accessToken => {
-                fetch('https://familypasswordvaultfunction.azurewebsites.net/api/ListSecrets', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': 'Bearer ' + accessToken
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    const secretsTable = document.getElementById('secrets-tbody');
-                    secretsTable.innerHTML = '';  // Clear the table before populating
-                    data.secrets.forEach(secret => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${secret.name}</td>
-                            <td>
-                                <input type="password" value="${secret.value}" readonly id="password-${secret.name}">
-                            </td>
-                            <td>
-                                <button onclick="togglePasswordVisibility('${secret.name}')">Show</button>
-                                <button onclick="copyToClipboard('${secret.name}')">Copy</button>
-                            </td>
-                        `;
-                        secretsTable.appendChild(row);
-                    });
-                })
-                .catch(error => {
-                    console.error('Error listing secrets:', error);
-                });
-            });
-        }
-
-        // Function to toggle password visibility for a specific secret
-        function togglePasswordVisibility(secretName) {
-            const passwordField = document.getElementById(`password-${secretName}`);
-            if (passwordField.type === 'password') {
-                passwordField.type = 'text';
-            } else {
-                passwordField.type = 'password';
-            }
-        }
-
-        // Copy to clipboard function for a specific secret
-function copyToClipboard(secretName) {
-    const passwordField = document.getElementById(`password-${secretName}`);
-    const passwordValue = passwordField.value;
-    
-    // Use the modern clipboard API to write the text
-    navigator.clipboard.writeText(passwordValue).then(function() {
-        alert(`Password for "${secretName}" copied to clipboard!`);
-    }).catch(function(error) {
-        console.error('Error copying text: ', error);
-        alert('Failed to copy text.');
-    });
-}
-
         // Function to add secret using API call
         document.getElementById('addSecretForm').addEventListener('submit', function (event) {
             event.preventDefault();
@@ -178,7 +126,6 @@ function copyToClipboard(secretName) {
                 .then(response => response.text())
                 .then(data => {
                     alert(`Secret "${secretName}" added successfully!`);
-                    listSecrets();  // Refresh the secrets list after adding
                 })
                 .catch(error => {
                     console.error('Error adding secret:', error);
@@ -186,29 +133,97 @@ function copyToClipboard(secretName) {
             });
         });
 
-        // Function to delete secret (using POST instead of DELETE)
+        // Function to view secret
+        document.getElementById('viewSecretForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+            const secretName = document.getElementById('viewSecretName').value;
+
+            getAccessToken().then(accessToken => {
+                fetch(`https://familypasswordvaultfunction.azurewebsites.net/api/ViewSecret?secretName=${secretName}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + accessToken
+                    }
+                })
+                .then(response => response.json())  // Parse the response as JSON
+                .then(secret => {
+                    if (secret.secretValue) {
+                        document.getElementById('secretValueField').value = secret.secretValue;
+                    } else {
+                        alert(`Error: ${secret.error}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error retrieving secret:', error);
+                });
+            });
+        });
+
+        // Function to delete secret
         document.getElementById('deleteSecretForm').addEventListener('submit', function (event) {
             event.preventDefault();
             const secretName = document.getElementById('deleteSecretName').value;
 
             getAccessToken().then(accessToken => {
-                fetch('https://familypasswordvaultfunction.azurewebsites.net/api/DeleteSecret', {
-                    method: 'POST',  // Using POST instead of DELETE
+                fetch(`https://familypasswordvaultfunction.azurewebsites.net/api/DeleteSecret`, {
+                    method: 'POST',  // Using POST as requested
                     headers: {
                         'Authorization': 'Bearer ' + accessToken,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ secretName: secretName })  // Sending secret name in the body
+                    body: JSON.stringify({ secretName })
                 })
                 .then(response => response.text())
                 .then(data => {
                     alert(`Secret "${secretName}" deleted successfully!`);
-                    listSecrets();  // Refresh the secrets list after deletion
                 })
                 .catch(error => {
                     console.error('Error deleting secret:', error);
                 });
             });
+        });
+
+        // Password visibility toggle function for Add Secret input
+        function toggleAddPasswordVisibility() {
+            const secretValueField = document.getElementById('secret-value');
+            const toggleButton = document.getElementById('toggle-add-password-visibility');
+            
+            if (secretValueField.type === 'password') {
+                secretValueField.type = 'text';
+                toggleButton.textContent = 'Hide';
+            } else {
+                secretValueField.type = 'password';
+                toggleButton.textContent = 'Show';
+            }
+        }
+
+        // Password visibility toggle function for View Secret input
+        function togglePasswordVisibility() {
+            const secretValueField = document.getElementById('secretValueField');
+            const toggleButton = document.getElementById('toggleSecretVisibility');
+            if (secretValueField.type === 'password') {
+                secretValueField.type = 'text';
+                toggleButton.textContent = 'Hide';
+            } else {
+                secretValueField.type = 'password';
+                toggleButton.textContent = 'Show';
+            }
+        }
+
+        // Copy to clipboard function
+        function copyToClipboard() {
+            const secretValueField = document.getElementById('secretValueField');
+            secretValueField.select();
+            document.execCommand('copy');
+            alert('Secret copied to clipboard!');
+        }
+
+        // Disable autocomplete for inputs
+        document.querySelectorAll('input').forEach(input => {
+            input.setAttribute('autocomplete', 'off');
+            input.setAttribute('autocorrect', 'off');
+            input.setAttribute('autocapitalize', 'off');
+            input.setAttribute('spellcheck', 'false');
         });
     </script>
 </body>
