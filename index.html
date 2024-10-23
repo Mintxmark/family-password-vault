@@ -155,26 +155,27 @@
 
 
         // Function to delete secret
-        document.getElementById('deleteSecretForm').addEventListener('submit', function (event) {
-            event.preventDefault();
-            const secretName = document.getElementById('deleteSecretName').value;
+document.getElementById('deleteSecretForm').addEventListener('submit', function (event) {
+    event.preventDefault();
+    const secretName = document.getElementById('deleteSecretName').value;
 
-            getAccessToken().then(accessToken => {
-                fetch(`https://familypasswordvaultfunction.azurewebsites.net/api/DeleteSecret?secretName=${secretName}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': 'Bearer ' + accessToken
-                    }
-                })
-                .then(response => response.text())
-                .then(data => {
-                    alert(`Secret "${secretName}" deleted successfully!`);
-                })
-                .catch(error => {
-                    console.error('Error deleting secret:', error);
-                });
-            });
+    getAccessToken().then(accessToken => {
+        fetch(`https://familypasswordvaultfunction.azurewebsites.net/api/DeleteSecret?secretName=${secretName}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': 'Bearer ' + accessToken
+            }
+        })
+        .then(response => response.text())
+        .then(data => {
+            alert(`Secret "${secretName}" deleted successfully!`);
+        })
+        .catch(error => {
+            console.error('Error deleting secret:', error);
         });
+    });
+});
+
 
         // Password visibility toggle function
         function togglePasswordVisibility() {
