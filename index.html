@@ -129,25 +129,30 @@
 
         // Function to view secret
         document.getElementById('viewSecretForm').addEventListener('submit', function (event) {
-            event.preventDefault();
-            const secretName = document.getElementById('viewSecretName').value;
+    event.preventDefault();
+    const secretName = document.getElementById('viewSecretName').value;
 
-            getAccessToken().then(accessToken => {
-                fetch(`https://familypasswordvaultfunction.azurewebsites.net/api/ViewSecret?secretName=${secretName}`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': 'Bearer ' + accessToken
-                    }
-                })
-                .then(response => response.json())  // Parse the response as JSON
-                .then(secret => {
-                    document.getElementById('secretValueField').value = secret.secretValue;
-                })
-                .catch(error => {
-                    console.error('Error retrieving secret:', error);
-                });
-            });
+    getAccessToken().then(accessToken => {
+        fetch(`https://familypasswordvaultfunction.azurewebsites.net/api/ViewSecret?secretName=${secretName}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + accessToken
+            }
+        })
+        .then(response => response.json())  // Parse the response as JSON
+        .then(secret => {
+            if (secret.secretValue) {
+                document.getElementById('secretValueField').value = secret.secretValue;
+            } else {
+                alert(`Error: ${secret.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error retrieving secret:', error);
         });
+    });
+});
+
 
         // Function to delete secret
         document.getElementById('deleteSecretForm').addEventListener('submit', function (event) {
