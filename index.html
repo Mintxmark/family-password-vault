@@ -106,7 +106,7 @@
             const secretValue = document.getElementById('secret-value').value;
 
             getAccessToken().then(accessToken => {
-                fetch('https://familypasswordvaultfunction.azurewebsites.net/api/addSecret?', {
+                fetch('https://familyPasswordVault.azurewebsites.net/api/addSecret', {
                     method: 'POST',
                     headers: {
                         'Authorization': 'Bearer ' + accessToken,
@@ -133,13 +133,13 @@
             const secretName = document.getElementById('viewSecretName').value;
 
             getAccessToken().then(accessToken => {
-                fetch(`https://familypasswordvaultfunction.azurewebsites.net/api/ViewSecret?secretName=${secretName}`, {
+                fetch(`https://familyPasswordVault.azurewebsites.net/api/viewSecret?secretName=${secretName}`, {
                     method: 'GET',
                     headers: {
                         'Authorization': 'Bearer ' + accessToken
                     }
                 })
-                .then(response => response.json())
+                .then(response => response.json())  // Parse the response as JSON
                 .then(secret => {
                     document.getElementById('secretValueField').value = secret.secretValue;
                 })
@@ -155,7 +155,7 @@
             const secretName = document.getElementById('deleteSecretName').value;
 
             getAccessToken().then(accessToken => {
-                fetch(`https://familypasswordvaultfunction.azurewebsites.net/api/DeleteSecret?secretName=${secretName}`, {
+                fetch(`https://familyPasswordVault.azurewebsites.net/api/deleteSecret?secretName=${secretName}`, {
                     method: 'DELETE',
                     headers: {
                         'Authorization': 'Bearer ' + accessToken
