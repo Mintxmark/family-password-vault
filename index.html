@@ -143,12 +143,12 @@
             }
         }
 
-        // Function to copy password to clipboard
+        // Function to copy password to clipboard for a specific secret
         function copyToClipboard(secretName) {
             const passwordField = document.getElementById(`password-${secretName}`);
             passwordField.select();
             document.execCommand('copy');
-            alert('Password copied to clipboard!');
+            alert(`Password for "${secretName}" copied to clipboard!`);
         }
 
         // Function to add secret using API call
