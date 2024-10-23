@@ -155,16 +155,19 @@
 
 
         // Function to delete secret
+// Function to delete secret (using POST instead of DELETE)
 document.getElementById('deleteSecretForm').addEventListener('submit', function (event) {
     event.preventDefault();
     const secretName = document.getElementById('deleteSecretName').value;
 
     getAccessToken().then(accessToken => {
-        fetch(`https://familypasswordvaultfunction.azurewebsites.net/api/DeleteSecret?secretName=${secretName}`, {
-            method: 'DELETE',
+        fetch('https://familypasswordvaultfunction.azurewebsites.net/api/DeleteSecret', {
+            method: 'POST',  // Using POST instead of DELETE
             headers: {
-                'Authorization': 'Bearer ' + accessToken
-            }
+                'Authorization': 'Bearer ' + accessToken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ secretName: secretName })  // Sending secret name in the body
         })
         .then(response => response.text())
         .then(data => {
@@ -175,6 +178,7 @@ document.getElementById('deleteSecretForm').addEventListener('submit', function 
         });
     });
 });
+
 
 
         // Password visibility toggle function
