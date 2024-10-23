@@ -1,233 +1,26 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Family Password Vault</title>
-    <script src="https://alcdn.msauth.net/browser/2.13.1/js/msal-browser.min.js"></script>
-</head>
-<body>
-    <h1>Family Password Vault</h1>
+const { DefaultAzureCredential } = require('@azure/identity');
+const { KeyVaultManagementClient } = require('@azure/arm-keyvault');
 
-    <!-- Login Section -->
-    <div id="login-section">
-        <button id="login-btn">Login with Microsoft Account</button>
-    </div>
+module.exports = async function (context, req) {
+    const credential = new DefaultAzureCredential();
+    const subscriptionId = process.env["AZURE_SUBSCRIPTION_ID"];
+    const client = new KeyVaultManagementClient(credential, subscriptionId);
 
-    <!-- Vault Section (Manage Secrets) -->
-    <div id="vault-section" style="display:none;">
-        <h2>Manage Your Secrets</h2>
+    try {
+        const vaults = await client.vaults.list();
+        const vaultNames = vaults.map(vault => ({
+            name: vault.name,
+            location: vault.location
+        }));
 
-        <!-- Add Secret -->
-        <form id="addSecretForm" autocomplete="off">
-            <div>
-                <input type="text" id="secret-name" name="secret-name" placeholder="Secret Name" autocomplete="off" required>
-                
-                <!-- Password field for secret value with show/hide functionality -->
-                <input type="password" id="secret-value" name="secret-value" placeholder="Secret Value" autocomplete="off" required>
-                <button type="button" id="toggle-add-password-visibility" onclick="toggleAddPasswordVisibility()">Show</button>
-                
-                <button id="add-secret-btn" type="submit">Add Secret</button>
-            </div>
-        </form>
-
-        <!-- Delete Secret -->
-        <h3>Delete Secret</h3>
-        <form id="deleteSecretForm">
-            <input type="text" id="deleteSecretName" placeholder="Secret Name" required>
-            <button type="submit">Delete Secret</button>
-        </form>
-        <p id="deleteSecretResult"></p>
-
-        <!-- List All Secrets -->
-        <h3>Your Secrets:</h3>
-        <table id="secrets-table" border="1" style="width: 100%;">
-            <thead>
-                <tr>
-                    <th>Secret Name</th>
-                    <th>Password</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="secrets-tbody">
-                <!-- Secrets will be dynamically populated here -->
-            </tbody>
-        </table>
-
-        <!-- Logout Button -->
-        <button id="logout-btn">Logout</button>
-    </div>
-
-    <!-- JavaScript Section -->
-    <script>
-        // MSAL configuration and authentication
-        const msalConfig = {
-            auth: {
-                clientId: "fa168072-b0c6-45a9-aecb-61a13a45ee4c",  // Your Azure AD Application ID
-                authority: "https://login.microsoftonline.com/af17ef54-4ec2-4f50-9f65-13cdbf818183",  // Your Tenant ID
-                redirectUri: window.location.origin,
-            }
+        context.res = {
+            status: 200,
+            body: vaultNames
         };
-
-        const msalInstance = new msal.PublicClientApplication(msalConfig);
-
-        // Function to trigger login via Azure AD
-        function login() {
-            msalInstance.loginPopup().then(response => {
-                if (response.account) {
-                    msalInstance.setActiveAccount(response.account);
-                    document.getElementById('login-section').style.display = 'none';
-                    document.getElementById('vault-section').style.display = 'block';
-                    listSecrets();  // List all secrets after login
-                }
-            }).catch(error => {
-                console.error('Login failed:', error);
-            });
-        }
-
-        // Attach the login function to the login button
-        document.getElementById('login-btn').addEventListener('click', login);
-
-        // Function to get access token for API calls
-        function getAccessToken() {
-            const request = {
-                scopes: ["https://vault.azure.net/.default"]
-            };
-
-            return msalInstance.acquireTokenSilent(request).then(response => {
-                return response.accessToken;
-            }).catch(error => {
-                return msalInstance.acquireTokenPopup(request).then(response => {
-                    return response.accessToken;
-                });
-            });
-        }
-
-        // Function to list all secrets in a table
-        function listSecrets() {
-            getAccessToken().then(accessToken => {
-                fetch('https://familypasswordvaultfunction.azurewebsites.net/api/ListSecrets', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': 'Bearer ' + accessToken
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    const secretsTable = document.getElementById('secrets-tbody');
-                    secretsTable.innerHTML = '';  // Clear the table before populating
-                    data.secrets.forEach(secret => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${secret.name}</td>
-                            <td>
-                                <input type="password" value="${secret.value}" readonly id="password-${secret.name}">
-                            </td>
-                            <td>
-                                <button onclick="togglePasswordVisibility('${secret.name}')">Show</button>
-                                <button onclick="copyToClipboard('${secret.name}')">Copy</button>
-                            </td>
-                        `;
-                        secretsTable.appendChild(row);
-                    });
-                })
-                .catch(error => {
-                    console.error('Error listing secrets:', error);
-                });
-            });
-        }
-
-        // Function to toggle password visibility for a specific secret
-        function togglePasswordVisibility(secretName) {
-            const passwordField = document.getElementById(`password-${secretName}`);
-            if (passwordField.type === 'password') {
-                passwordField.type = 'text';
-            } else {
-                passwordField.type = 'password';
-            }
-        }
-
-        // Function to toggle password visibility for the Add Secret input field
-        function toggleAddPasswordVisibility() {
-            const secretValueField = document.getElementById('secret-value');
-            const toggleButton = document.getElementById('toggle-add-password-visibility');
-            
-            if (secretValueField.type === 'password') {
-                secretValueField.type = 'text';
-                toggleButton.textContent = 'Hide';
-            } else {
-                secretValueField.type = 'password';
-                toggleButton.textContent = 'Show';
-            }
-        }
-
-        // Copy to clipboard function for a specific secret
-        function copyToClipboard(secretName) {
-            const passwordField = document.getElementById(`password-${secretName}`);
-            const passwordValue = passwordField.value;
-            
-            // Use the modern clipboard API to write the text
-            navigator.clipboard.writeText(passwordValue).then(function() {
-                alert(`Password for "${secretName}" copied to clipboard!`);
-            }).catch(function(error) {
-                console.error('Error copying text: ', error);
-                alert('Failed to copy text.');
-            });
-        }
-
-        // Function to add secret using API call
-        document.getElementById('addSecretForm').addEventListener('submit', function (event) {
-            event.preventDefault();
-            const secretName = document.getElementById('secret-name').value;
-            const secretValue = document.getElementById('secret-value').value;
-
-            getAccessToken().then(accessToken => {
-                fetch('https://familypasswordvaultfunction.azurewebsites.net/api/addSecret?', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + accessToken,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        secretName: secretName,
-                        secretValue: secretValue
-                    })
-                })
-                .then(response => response.text())
-                .then(data => {
-                    alert(`Secret "${secretName}" added successfully!`);
-                    listSecrets();  // Refresh the secrets list after adding
-                })
-                .catch(error => {
-                    console.error('Error adding secret:', error);
-                });
-            });
-        });
-
-        // Function to delete secret (using POST instead of DELETE)
-        document.getElementById('deleteSecretForm').addEventListener('submit', function (event) {
-            event.preventDefault();
-            const secretName = document.getElementById('deleteSecretName').value;
-
-            getAccessToken().then(accessToken => {
-                fetch('https://familypasswordvaultfunction.azurewebsites.net/api/DeleteSecret', {
-                    method: 'POST',  // Using POST instead of DELETE
-                    headers: {
-                        'Authorization': 'Bearer ' + accessToken,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ secretName: secretName })  // Sending secret name in the body
-                })
-                .then(response => response.text())
-                .then(data => {
-                    alert(`Secret "${secretName}" deleted successfully!`);
-                    listSecrets();  // Refresh the secrets list after deletion
-                })
-                .catch(error => {
-                    console.error('Error deleting secret:', error);
-                });
-            });
-        });
-    </script>
-</body>
-</html>
+    } catch (error) {
+        context.res = {
+            status: 500,
+            body: `Error fetching vaults: ${error.message}`
+        };
+    }
+};
