@@ -146,12 +146,15 @@
         // Copy to clipboard function for a specific secret
 function copyToClipboard(secretName) {
     const passwordField = document.getElementById(`password-${secretName}`);
-    passwordField.removeAttribute('readonly');  // Temporarily remove readonly to allow selection
-    passwordField.select();
-    passwordField.setSelectionRange(0, 99999);  // For mobile devices
-    document.execCommand('copy');
-    passwordField.setAttribute('readonly', true);  // Restore readonly attribute
-    alert(`Password for "${secretName}" copied to clipboard!`);
+    const passwordValue = passwordField.value;
+    
+    // Use the modern clipboard API to write the text
+    navigator.clipboard.writeText(passwordValue).then(function() {
+        alert(`Password for "${secretName}" copied to clipboard!`);
+    }).catch(function(error) {
+        console.error('Error copying text: ', error);
+        alert('Failed to copy text.');
+    });
 }
 
         // Function to add secret using API call
