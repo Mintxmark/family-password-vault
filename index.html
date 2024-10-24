@@ -104,19 +104,22 @@
         });
     }
 
-    // Function to list vaults
     function listVaults() {
-        getAccessToken().then(accessToken => {
-            fetch('https://familypasswordvaultfunction.azurewebsites.net/api/ListVaults', {
-                method: 'GET',
-                headers: {
-                    'Authorization': 'Bearer ' + accessToken
-                }
-            })
-            .then(response => response.json())
-            .then(vaults => {
-                const vaultSelection = document.getElementById('vault-selection');
-                vaultSelection.innerHTML = ''; // Clear current options
+    getAccessToken().then(accessToken => {
+        fetch('https://familypasswordvaultfunction.azurewebsites.net/api/ListVaults?', {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + accessToken
+            }
+        })
+        .then(response => response.json())
+        .then(vaults => {
+            console.log("Vaults response: ", vaults);  // Log response for debugging
+            const vaultSelection = document.getElementById('vault-selection');
+            vaultSelection.innerHTML = ''; // Clear current options
+            if (vaults.length === 0) {
+                console.log("No vaults available.");
+            } else {
                 vaults.forEach(vault => {
                     const option = document.createElement('option');
                     option.value = vault.name;
@@ -127,12 +130,14 @@
                 if (vaults.length > 0) {
                     loadSecretsFromVault(vaults[0].name);
                 }
-            })
-            .catch(error => {
-                console.error('Error fetching vaults:', error);
-            });
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching vaults:', error);
         });
-    }
+    });
+}
+
 
     // Function to load secrets from a selected vault
     function loadSecretsFromVault(vaultName) {
