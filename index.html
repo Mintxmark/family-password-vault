@@ -18,6 +18,9 @@
 <div id="vault-section" style="display:none;">
     <h2>Manage Your Secrets</h2>
 
+    <!-- Display Logged-In User -->
+    <p id="logged-in-user"></p>
+
     <!-- Vault Selection -->
     <label for="vault-selection">Select a Vault:</label>
     <select id="vault-selection"></select>
@@ -79,7 +82,11 @@
                 msalInstance.setActiveAccount(response.account);
                 document.getElementById('login-section').style.display = 'none';
                 document.getElementById('vault-section').style.display = 'block';
-                listVaults(response.account.username);  // List all vaults based on the user
+                
+                // Show logged-in user
+                document.getElementById('logged-in-user').textContent = `Logged in as: ${response.account.username}`;
+
+                populateVaults(response.account.username);  // Manually populate vaults based on user
             }
         }).catch(error => {
             console.error('Login failed:', error);
@@ -90,7 +97,7 @@
     document.getElementById('login-btn').addEventListener('click', login);
 
     // Function to manually list vaults based on the user
-    function listVaults(username) {
+    function populateVaults(username) {
         const vaultSelection = document.getElementById('vault-selection');
         vaultSelection.innerHTML = '';  // Clear current options
 
@@ -120,6 +127,41 @@
             console.log("No vaults available.");
         }
     }
+
+    // Commented out the ListVaults function since we're manually populating vaults
+    // function listVaults() {
+    //     getAccessToken().then(accessToken => {
+    //         fetch('https://familypasswordvaultfunction.azurewebsites.net/api/ListVaults?', {
+    //             method: 'GET',
+    //             headers: {
+    //                 'Authorization': 'Bearer ' + accessToken
+    //             }
+    //         })
+    //         .then(response => response.json())
+    //         .then(vaults => {
+    //             console.log("Vaults response: ", vaults);  // Log response for debugging
+    //             const vaultSelection = document.getElementById('vault-selection');
+    //             vaultSelection.innerHTML = ''; // Clear current options
+    //             if (vaults.length === 0) {
+    //                 console.log("No vaults available.");
+    //             } else {
+    //                 vaults.forEach(vault => {
+    //                     const option = document.createElement('option');
+    //                     option.value = vault.name;
+    //                     option.textContent = vault.name;
+    //                     vaultSelection.appendChild(option);
+    //                 });
+    //                 // Automatically load the first vault's secrets
+    //                 if (vaults.length > 0) {
+    //                     loadSecretsFromVault(vaults[0].name);
+    //                 }
+    //             }
+    //         })
+    //         .catch(error => {
+    //             console.error('Error fetching vaults:', error);
+    //         });
+    //     });
+    // }
 
     // Function to load secrets from a selected vault
     function loadSecretsFromVault(vaultName) {
