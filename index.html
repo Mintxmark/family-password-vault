@@ -1,235 +1,144 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Family Password Vault</title>
-<script src="https://alcdn.msauth.net/browser/2.13.1/js/msal-browser.min.js"></script>
-</head>
-<body>
-<h1>Family Password Vault</h1>
-
-<!-- Login Section -->
-<div id="login-section">
-    <button id="login-btn">Login with Microsoft Account</button>
-</div>
-
-<!-- Vault Section (Manage Secrets) -->
-<div id="vault-section" style="display:none;">
-    <h2>Manage Your Secrets</h2>
-
-    <!-- Display Logged-In User -->
-    <p id="logged-in-user"></p>
-
-    <!-- Vault Selection -->
-    <label for="vault-selection">Select a Vault:</label>
-    <select id="vault-selection"></select>
-
-    <!-- Add Secret -->
-    <form id="addSecretForm" autocomplete="off">
-        <div>
-            <input type="text" id="secret-name" name="secret-name" placeholder="Secret Name" autocomplete="off" required>
-            <input type="password" id="secret-value" name="secret-value" placeholder="Secret Value" autocomplete="off" required>
-            <button id="toggleSecretVisibilityAdd" type="button" onclick="togglePasswordVisibilityAdd()">Show</button>
-            <button id="add-secret-btn" type="submit">Add Secret</button>
-        </div>
-    </form>
-
-    <!-- Delete Secret -->
-    <h3>Delete Secret</h3>
-    <form id="deleteSecretForm">
-        <input type="text" id="deleteSecretName" placeholder="Secret Name" required>
-        <button type="submit">Delete Secret</button>
-    </form>
-    <p id="deleteSecretResult"></p>
-
-    <!-- List All Secrets -->
-    <h3>Your Secrets:</h3>
-    <table id="secrets-table" border="1" style="width: 100%;">
-        <thead>
-            <tr>
-                <th>Secret Name</th>
-                <th>Password</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="secrets-tbody">
-            <!-- Secrets will be dynamically populated here -->
-        </tbody>
-    </table>
-
-    <!-- Logout Button -->
-    <button id="logout-btn">Logout</button>
-</div>
-
-<!-- JavaScript Section -->
 <script>
-    // MSAL configuration and authentication
-    const msalConfig = {
-        auth: {
-            clientId: "fa168072-b0c6-45a9-aecb-61a13a45ee4c",  // Your Azure AD Application ID
-            authority: "https://login.microsoftonline.com/af17ef54-4ec2-4f50-9f65-13cdbf818183",  // Your Tenant ID
-            redirectUri: window.location.origin,
+// MSAL configuration and authentication
+const msalConfig = {
+    auth: {
+        clientId: "fa168072-b0c6-45a9-aecb-61a13a45ee4c",  // Your Azure AD Application ID
+        authority: "https://login.microsoftonline.com/af17ef54-4ec2-4f50-9f65-13cdbf818183",  // Your Tenant ID
+        redirectUri: window.location.origin,
+    }
+};
+
+const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+// Function to trigger login via Azure AD
+function login() {
+    msalInstance.loginPopup().then(response => {
+        if (response.account) {
+            msalInstance.setActiveAccount(response.account);
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('vault-section').style.display = 'block';
+            document.getElementById('logged-in-user').innerHTML = "Logged in as: " + response.account.username;
+            populateVaultOptions(response.account.username);
         }
+    }).catch(error => {
+        console.error('Login failed:', error);
+    });
+}
+
+// Attach the login function to the login button
+document.getElementById('login-btn').addEventListener('click', login);
+
+// Function to populate vaults manually based on the logged-in user
+function populateVaultOptions(username) {
+    const vaultSelection = document.getElementById('vault-selection');
+    vaultSelection.innerHTML = '';  // Clear current options
+    
+    let availableVaults = [];
+
+    if (username === "cat@outlook.com") {
+        availableVaults = ["catPasswordVault", "familyPasswordVault"];
+    } else if (username === "mark@outlook.com") {
+        availableVaults = ["markPasswordVault", "familyPasswordVault"];
+    }
+
+    if (availableVaults.length > 0) {
+        availableVaults.forEach(vault => {
+            const option = document.createElement('option');
+            option.value = vault;
+            option.textContent = vault;
+            vaultSelection.appendChild(option);
+        });
+    } else {
+        console.log("No vaults available for this user.");
+    }
+}
+
+// Function to get access token for API calls
+function getAccessToken() {
+    const request = {
+        scopes: ["https://vault.azure.net/.default"]
     };
 
-    const msalInstance = new msal.PublicClientApplication(msalConfig);
+    return msalInstance.acquireTokenSilent(request).then(response => {
+        return response.accessToken;
+    }).catch(error => {
+        return msalInstance.acquireTokenPopup(request).then(response => {
+            return response.accessToken;
+        });
+    });
+}
 
-    // Function to trigger login via Azure AD
-    function login() {
-        msalInstance.loginPopup().then(response => {
-            if (response.account) {
-                msalInstance.setActiveAccount(response.account);
-                document.getElementById('login-section').style.display = 'none';
-                document.getElementById('vault-section').style.display = 'block';
-                
-                // Show logged-in user
-                document.getElementById('logged-in-user').textContent = `Logged in as: ${response.account.username}`;
+// Function to load secrets from a selected vault
+document.getElementById('vault-selection').addEventListener('change', function () {
+    const selectedVault = this.value;
+    loadSecretsFromVault(selectedVault);
+});
 
-                populateVaults(response.account.username);  // Manually populate vaults based on user
+function loadSecretsFromVault(vaultName) {
+    getAccessToken().then(accessToken => {
+        fetch(`https://familypasswordvaultfunction.azurewebsites.net/api/ListSecrets?vaultName=${vaultName}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + accessToken
             }
-        }).catch(error => {
-            console.error('Login failed:', error);
+        })
+        .then(response => response.json())
+        .then(data => {
+            const secretsTable = document.getElementById('secrets-tbody');
+            secretsTable.innerHTML = '';  // Clear the table before populating
+            data.secrets.forEach(secret => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${secret.name}</td>
+                    <td>
+                        <input type="password" value="${secret.value}" readonly id="password-${secret.name}">
+                    </td>
+                    <td>
+                        <button onclick="togglePasswordVisibility('${secret.name}')">Show</button>
+                        <button onclick="copyToClipboard('${secret.name}')">Copy</button>
+                    </td>
+                `;
+                secretsTable.appendChild(row);
+            });
+        })
+        .catch(error => {
+            console.error('Error listing secrets:', error);
         });
+    });
+}
+
+// Function to toggle password visibility for a specific secret
+function togglePasswordVisibility(secretName) {
+    const passwordField = document.getElementById(`password-${secretName}`);
+    if (passwordField.type === 'password') {
+        passwordField.type = 'text';
+    } else {
+        passwordField.type = 'password';
     }
+}
 
-    // Attach the login function to the login button
-    document.getElementById('login-btn').addEventListener('click', login);
+// Copy to clipboard function for a specific secret
+function copyToClipboard(secretName) {
+    const passwordField = document.getElementById(`password-${secretName}`);
+    passwordField.removeAttribute('readonly');  // Temporarily remove readonly to allow selection
+    passwordField.select();
+    passwordField.setSelectionRange(0, 99999);  // For mobile devices
+    document.execCommand('copy');
+    passwordField.setAttribute('readonly', true);  // Restore readonly attribute
+    alert(`Password for "${secretName}" copied to clipboard!`);
+}
 
-    // Function to manually list vaults based on the user
-    function populateVaults(username) {
-        const vaultSelection = document.getElementById('vault-selection');
-        vaultSelection.innerHTML = '';  // Clear current options
-
-        let availableVaults = [];
-        if (username === 'cat@outlook.com') {
-            availableVaults = ['catPasswordVault', 'familyPasswordVault'];
-        } else if (username === 'mark@outlook.com') {
-            availableVaults = ['markPasswordVault', 'familyPasswordVault'];
-        }
-
-        if (availableVaults.length > 0) {
-            availableVaults.forEach(vault => {
-                const option = document.createElement('option');
-                option.value = vault;
-                option.textContent = vault;
-                vaultSelection.appendChild(option);
-            });
-
-            // Automatically load the first vault's secrets
-            loadSecretsFromVault(availableVaults[0]);
-
-            // Add an event listener for selecting a different vault
-            vaultSelection.addEventListener('change', function() {
-                loadSecretsFromVault(this.value);
-            });
-        } else {
-            console.log("No vaults available.");
-        }
+// Password visibility toggle for add secret form
+function togglePasswordVisibilityAdd() {
+    const secretValueField = document.getElementById('secret-value');
+    const toggleButton = document.getElementById('toggleSecretVisibilityAdd');
+    if (secretValueField.type === 'password') {
+        secretValueField.type = 'text';
+        toggleButton.textContent = 'Hide';
+    } else {
+        secretValueField.type = 'password';
+        toggleButton.textContent = 'Show';
     }
+}
 
-    // Commented out the ListVaults function since we're manually populating vaults
-    // function listVaults() {
-    //     getAccessToken().then(accessToken => {
-    //         fetch('https://familypasswordvaultfunction.azurewebsites.net/api/ListVaults?', {
-    //             method: 'GET',
-    //             headers: {
-    //                 'Authorization': 'Bearer ' + accessToken
-    //             }
-    //         })
-    //         .then(response => response.json())
-    //         .then(vaults => {
-    //             console.log("Vaults response: ", vaults);  // Log response for debugging
-    //             const vaultSelection = document.getElementById('vault-selection');
-    //             vaultSelection.innerHTML = ''; // Clear current options
-    //             if (vaults.length === 0) {
-    //                 console.log("No vaults available.");
-    //             } else {
-    //                 vaults.forEach(vault => {
-    //                     const option = document.createElement('option');
-    //                     option.value = vault.name;
-    //                     option.textContent = vault.name;
-    //                     vaultSelection.appendChild(option);
-    //                 });
-    //                 // Automatically load the first vault's secrets
-    //                 if (vaults.length > 0) {
-    //                     loadSecretsFromVault(vaults[0].name);
-    //                 }
-    //             }
-    //         })
-    //         .catch(error => {
-    //             console.error('Error fetching vaults:', error);
-    //         });
-    //     });
-    // }
-
-    // Function to load secrets from a selected vault
-    function loadSecretsFromVault(vaultName) {
-        getAccessToken().then(accessToken => {
-            fetch(`https://familypasswordvaultfunction.azurewebsites.net/api/ListSecrets?vaultName=${vaultName}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': 'Bearer ' + accessToken
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                const secretsTable = document.getElementById('secrets-tbody');
-                secretsTable.innerHTML = '';  // Clear the table before populating
-                data.secrets.forEach(secret => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${secret.name}</td>
-                        <td>
-                            <input type="password" value="${secret.value}" readonly id="password-${secret.name}">
-                        </td>
-                        <td>
-                            <button onclick="togglePasswordVisibility('${secret.name}')">Show</button>
-                            <button onclick="copyToClipboard('${secret.name}')">Copy</button>
-                        </td>
-                    `;
-                    secretsTable.appendChild(row);
-                });
-            })
-            .catch(error => {
-                console.error('Error listing secrets:', error);
-            });
-        });
-    }
-
-    // Function to toggle password visibility for a specific secret
-    function togglePasswordVisibility(secretName) {
-        const passwordField = document.getElementById(`password-${secretName}`);
-        if (passwordField.type === 'password') {
-            passwordField.type = 'text';
-        } else {
-            passwordField.type = 'password';
-        }
-    }
-
-    // Copy to clipboard function for a specific secret
-    function copyToClipboard(secretName) {
-        const passwordField = document.getElementById(`password-${secretName}`);
-        passwordField.removeAttribute('readonly');  // Temporarily remove readonly to allow selection
-        passwordField.select();
-        passwordField.setSelectionRange(0, 99999);  // For mobile devices
-        document.execCommand('copy');
-        passwordField.setAttribute('readonly', true);  // Restore readonly attribute
-        alert(`Password for "${secretName}" copied to clipboard!`);
-    }
-
-    // Password visibility toggle for add secret form
-    function togglePasswordVisibilityAdd() {
-        const secretValueField = document.getElementById('secret-value');
-        const toggleButton = document.getElementById('toggleSecretVisibilityAdd');
-        if (secretValueField.type === 'password') {
-            secretValueField.type = 'text';
-            toggleButton.textContent = 'Hide';
-        } else {
-            secretValueField.type = 'password';
-            toggleButton.textContent = 'Show';
-        }
-    }
 </script>
-</body>
-</html>
