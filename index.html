@@ -79,7 +79,7 @@
                 msalInstance.setActiveAccount(response.account);
                 document.getElementById('login-section').style.display = 'none';
                 document.getElementById('vault-section').style.display = 'block';
-                listVaults();  // List all vaults after login
+                listVaults(response.account.username);  // List all vaults based on the user
             }
         }).catch(error => {
             console.error('Login failed:', error);
@@ -89,55 +89,37 @@
     // Attach the login function to the login button
     document.getElementById('login-btn').addEventListener('click', login);
 
-    // Function to get access token for API calls
-    function getAccessToken() {
-        const request = {
-            scopes: ["https://vault.azure.net/.default"]
-        };
+    // Function to manually list vaults based on the user
+    function listVaults(username) {
+        const vaultSelection = document.getElementById('vault-selection');
+        vaultSelection.innerHTML = '';  // Clear current options
 
-        return msalInstance.acquireTokenSilent(request).then(response => {
-            return response.accessToken;
-        }).catch(error => {
-            return msalInstance.acquireTokenPopup(request).then(response => {
-                return response.accessToken;
+        let availableVaults = [];
+        if (username === 'cat@outlook.com') {
+            availableVaults = ['catPasswordVault', 'familyPasswordVault'];
+        } else if (username === 'mark@outlook.com') {
+            availableVaults = ['markPasswordVault', 'familyPasswordVault'];
+        }
+
+        if (availableVaults.length > 0) {
+            availableVaults.forEach(vault => {
+                const option = document.createElement('option');
+                option.value = vault;
+                option.textContent = vault;
+                vaultSelection.appendChild(option);
             });
-        });
+
+            // Automatically load the first vault's secrets
+            loadSecretsFromVault(availableVaults[0]);
+
+            // Add an event listener for selecting a different vault
+            vaultSelection.addEventListener('change', function() {
+                loadSecretsFromVault(this.value);
+            });
+        } else {
+            console.log("No vaults available.");
+        }
     }
-
-    function listVaults() {
-    getAccessToken().then(accessToken => {
-        fetch('https://familypasswordvaultfunction.azurewebsites.net/api/ListVaults?', {
-            method: 'GET',
-            headers: {
-                'Authorization': 'Bearer ' + accessToken
-            }
-        })
-        .then(response => response.json())
-        .then(vaults => {
-            console.log("Vaults response: ", vaults);  // Log response for debugging
-            const vaultSelection = document.getElementById('vault-selection');
-            vaultSelection.innerHTML = ''; // Clear current options
-            if (vaults.length === 0) {
-                console.log("No vaults available.");
-            } else {
-                vaults.forEach(vault => {
-                    const option = document.createElement('option');
-                    option.value = vault.name;
-                    option.textContent = vault.name;
-                    vaultSelection.appendChild(option);
-                });
-                // Automatically load the first vault's secrets
-                if (vaults.length > 0) {
-                    loadSecretsFromVault(vaults[0].name);
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching vaults:', error);
-        });
-    });
-}
-
 
     // Function to load secrets from a selected vault
     function loadSecretsFromVault(vaultName) {
