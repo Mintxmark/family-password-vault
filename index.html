@@ -205,6 +205,37 @@
                 toggleButton.textContent = 'Show';
             }
         }
+
+        // Prevent form from reloading the page and add the secret via JavaScript
+        document.getElementById('addSecretForm').addEventListener('submit', function (event) {
+            event.preventDefault();  // Prevent page reload
+            const vaultName = document.getElementById('vault-selection').value;
+            const secretName = document.getElementById('secret-name').value;
+            const secretValue = document.getElementById('secret-value').value;
+
+            getAccessToken().then(accessToken => {
+                fetch(`https://familypasswordvaultfunction.azurewebsites.net/api/AddSecret?vaultName=${vaultName}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + accessToken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ secretName: secretName, secretValue: secretValue })
+                })
+                .then(response => {
+                    if (response.ok) {
+                        alert('Secret added successfully!');
+                        loadSecretsFromVault(vaultName);  // Reload the secrets for the selected vault
+                    } else {
+                        alert('Failed to add secret.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error adding secret:', error);
+                });
+            });
+        });
+
     </script>
 </body>
 </html>
